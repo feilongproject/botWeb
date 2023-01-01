@@ -1,0 +1,97 @@
+@import './base.css';
+
+#app {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 2rem;
+
+    font-weight: normal;
+}
+
+a,
+.green {
+    text-decoration: none;
+    color: hsla(160, 100%, 37%, 1);
+    transition: 0.4s;
+}
+
+@media (hover: hover) {
+    a:hover {
+        background-color: hsla(160, 100%, 37%, 0.2);
+    }
+}
+
+#app {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.board {
+    padding: 10px;
+    margin-top: 20px;
+    background-color: #333333;
+    box-shadow: 1px 1px 50px rgb(0 0 0 / 30%);
+    border-radius: 5px;
+    text-align: center;
+}
+
+input,
+button {
+    background: transparent;
+    border: solid 3px #eea931;
+    padding: 5px;
+    margin: 5px;
+    color: unset;
+}
+
+*::-webkit-scrollbar {
+    /* 滚动条整体样式 */
+    width: 4px;
+    /* 高宽分别对应横竖滚动条的尺寸 */
+    height: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+    /* 滚动条内滑块的样式 */
+    border-radius: 5px;
+    -box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.11);
+    background: #5d7cd7;
+}
+
+*::-webkit-scrollbar-track {
+    /* 滚动条里面轨道的样式 */
+    -box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.1);
+    border-radius: 0;
+    background: #eea931;
+}
+
+select {
+    vertical-align: middle;
+    border: 1px solid #94c1e7;
+    -moz-border-radius: 0.2em;
+    -webkit-border-radius: 0.2em;
+    border-radius: 0.2em;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    font-family: SimHei;
+    font-size: 1.1em;
+    color: RGBA(102, 102, 102, 0.7);
+    cursor: pointer;
+    color: #ffffff;
+    background-color: transparent;
+    border: solid 1px #eea931;
+    padding: 5px;
+}
+
+select option {
+    background-color: #333333;
+    color: #ffffff;
+}
+
+table,
+td,
+th {
+    border: 1px solid #000000;
+}
