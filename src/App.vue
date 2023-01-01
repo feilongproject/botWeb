@@ -1,6 +1,6 @@
 <template>
     <div class="board">
-        <h1>exam cmp1</h1>
+        <h1>botWeb</h1>
     </div>
     <ul class="board menu">
         <li class="menu-item">主页</li>

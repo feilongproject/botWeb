@@ -66,7 +66,7 @@ const channelInfo = ref({
     selectd: "NONE",
     all: [{ id: "NONE", name: "未选择", selected: true, type: 0 }],
 });
-var ws = new WebSocket(`${botServerUrl.value}?token=${botServerToken.value}`, [botServerToken.value]);
+var ws = new WebSocket(`${botServerUrl.value}?token=${botServerToken.value}`, botServerToken.value ? [botServerToken.value] : undefined);
 
 const wsIntentMessage: { [key: string]: (data: any) => void } = {
     "channel.getList": (data: SaveGuild[]) => {
@@ -96,7 +96,7 @@ watch(botStatus.value, () => {
 
 init();
 function init(isReconnent = false) {
-    if (isReconnent) ws = new WebSocket(`${botServerUrl.value}?token=${botServerToken.value}`, [botServerToken.value]);
+    if (isReconnent) ws = new WebSocket(`${botServerUrl.value}?token=${botServerToken.value}`, botServerToken.value ? [botServerToken.value] : undefined);
 
     ws.onopen = () => {
         console.log("连接开启，状态：", ws.readyState);
