@@ -36,7 +36,8 @@
         </div>
         <div class="botServer">
             <span>bot服务器连接信息</span>
-            <div><label for="botServerInputUrl">地址</label> <input id="botServerInputUrl" type="text" v-model="botServerUrl" /></div>
+            <div><label for="botServerInputIp">地址</label> <input id="botServerInputIp" type="text" v-model="botServerIp" /></div>
+            <div><label for="botServerInputPort">端口</label> <input id="botServerInputPort" type="text" v-model="botServerPort" /></div>
             <div><label for="botServerInputToken">Token</label> <input id="botServerInputToken" type="text" v-model="botServerToken" /></div>
             <div>
                 <button @click="saveServer">保存服务器设置</button>
@@ -56,7 +57,8 @@ import Notice from "./Notice.vue";
 
 const noticeShow = ref();
 const botStatus = ref([{ msg: "正在建立连接", classType: "0af" }]);
-const botServerUrl = ref(localStorage.getItem("botServerUrl") || "ws://127.0.0.1:8848");
+const botServerIp = ref(localStorage.getItem("botServerIp") || "127.0.0.1");
+const botServerPort = ref(localStorage.getItem("botServerPort") || "8848");
 const botServerToken = ref(localStorage.getItem("botServerToken") || "");
 const botServerReconnent = ref(true);
 const sendMsgContent = ref("");
@@ -66,7 +68,7 @@ const channelInfo = ref({
     selectd: "NONE",
     all: [{ id: "NONE", name: "未选择", selected: true, type: 0 }],
 });
-var ws = new WebSocket(`${botServerUrl.value}?token=${botServerToken.value}`, botServerToken.value ? [botServerToken.value] : undefined);
+var ws = new WebSocket(`ws://${botServerIp.value}:${botServerPort.value}?token=${botServerToken.value}`, botServerToken.value ? [botServerToken.value] : undefined);
 
 const wsIntentMessage: { [key: string]: (data: any) => void } = {
     "channel.getList": (data: SaveGuild[]) => {
@@ -96,7 +98,7 @@ watch(botStatus.value, () => {
 
 init();
 function init(isReconnent = false) {
-    if (isReconnent) ws = new WebSocket(`${botServerUrl.value}?token=${botServerToken.value}`, botServerToken.value ? [botServerToken.value] : undefined);
+    if (isReconnent) ws = new WebSocket(`ws://${botServerIp.value}:${botServerPort.value}?token=${botServerToken.value}`, botServerToken.value ? [botServerToken.value] : undefined);
 
     ws.onopen = () => {
         console.log("连接开启，状态：", ws.readyState);
@@ -140,7 +142,8 @@ function init(isReconnent = false) {
 }
 
 function saveServer(e: MouseEvent) {
-    localStorage.setItem("botServerUrl", botServerUrl.value);
+    localStorage.setItem("botServerIp", botServerIp.value);
+    localStorage.setItem("botServerPort", botServerPort.value);
     localStorage.setItem("botServerToken", botServerToken.value);
 }
 function closeServer(e: MouseEvent) {
