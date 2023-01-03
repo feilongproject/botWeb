@@ -182,7 +182,7 @@ function sendMsg() {
                 retKey: "channel.recMsg",
                 data: {
                     channelId: channelInfo.value.selectd,
-                    content: "[web测试]" + sendMsgContent.value,
+                    content: sendMsgContent.value,
                 },
             })
         );
