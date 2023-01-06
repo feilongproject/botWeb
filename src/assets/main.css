@@ -36,6 +36,7 @@ a,
     text-align: center;
 }
 
+.input,
 input,
 button {
     background: transparent;
