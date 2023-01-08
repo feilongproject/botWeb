@@ -41,13 +41,14 @@
                         <div v-if="keywords.selectd.keyword != 'NONE'">
                             <!-- <span>{{ keywords.selectd }}</span> -->
                             <div>类型: {{ keywords.selectd.type == "accurate" ? "精确" : "模糊" }}</div>
-                            <div>审核状态: {{ keywords.selectd.status == "checked" ? "通过" : "正在审核" }}</div>
+                            <div>状态: {{ keywords.selectd.status == "checked" ? "启用" : "禁用" }}</div>
                             <div>创建者: {{ keywords.selectd.ownerName }}</div>
                         </div>
                     </label>
                 </th>
                 <th>
-                    <button @click="keywordExec.passCheck">点我通过审核</button>
+                    <button @click="keywordExec.changeStatus">点我{{ keywords.selectd.status == "checked" ? "禁用" : "启用" }}</button>
+                    <button @click="keywordExec.changeType">点我更改为{{ keywords.selectd.type == "accurate" ? "模糊" : "精确" }}类型</button>
                     <button @click="keywordExec.saveContent">点我保存回复内容</button>
                     <button @click="keywordExec.delete">点我删除</button>
                     <hr />
@@ -65,6 +66,12 @@
         </div>
         <div class="botServer">
             <span>bot服务器连接信息</span>
+            <label for="packageVersion">
+                网页版本:
+                <input id="webVersion" style="width: 50px" :value="webVersion" readonly />
+                后端版本
+                <input id="serverVersion" style="width: 50px" :value="serverVersion" readonly />
+            </label>
             <label class="botServerWsType">
                 连接类型
                 <span class="input"> <input id="botServerWsTypeWs" v-model="botServer.wsType" type="radio" value="ws" /> ws <input id="botServerWsTypeWss" v-model="botServer.wsType" type="radio" value="wss" />wss </span>
@@ -88,8 +95,10 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import Notice from "./Notice.vue";
+import { version as webVersion } from "../../package.json";
 
 const noticeShow = ref();
+const serverVersion = ref("未知");
 const botStatus = ref([{ msg: "正在建立连接", classType: "0af" }]);
 const botServer = ref({
     token: localStorage.getItem("botServerToken") || "",
@@ -115,9 +124,13 @@ const keywords = ref({
 });
 keywords.value.all = [];
 const keywordExec = {
-    passCheck: () => {
+    changeStatus: () => {
         if (keywords.value.selectd.keyword == "NONE") return (keywordExec.status.value = { info: "未选择数据, 无法通过", class: "border: solid 3px #f00" });
-        wsSend({ key: "keyword.passCheck", data: keywords.value.selectd }, "keyword.passCheck");
+        wsSend({ key: "keyword.changeStatus", data: keywords.value.selectd }, "keyword.changeStatus");
+    },
+    changeType: () => {
+        if (keywords.value.selectd.keyword == "NONE") return (keywordExec.status.value = { info: "未选择数据, 无法更改", class: "border: solid 3px #f00" });
+        wsSend({ key: "keyword.changeType", data: keywords.value.selectd }, "keyword.changeType");
     },
     saveContent: () => {
         if (keywords.value.selectd.keyword == "NONE") return (keywordExec.status.value = { info: "未选择数据, 无法保存", class: "border: solid 3px #f00" });
@@ -144,6 +157,9 @@ const wsIntentMessage: { [key: string]: (data?: any) => void } = {
     error: (err) => {
         botStatus.value.push({ msg: `Error: ${err}`, classType: "f00" });
     },
+    version: (data) => {
+        serverVersion.value = data.serverVersion;
+    },
     "channel.getList": (data: SaveGuild[]) => {
         //console.log(`接收到信息:`, data);
         channelInfo.value.all = [];
@@ -165,10 +181,15 @@ const wsIntentMessage: { [key: string]: (data?: any) => void } = {
     "keyword.get": (_keywords) => {
         keywords.value.all = _keywords;
     },
-    "keyword.passCheck": (_keyword) => {
+    "keyword.changeStatus": (_keyword) => {
         keywords.value.all[_keyword.index] = _keyword;
         keywords.value.selectd = _keyword;
-        if (_keyword.status == "checked") keywordExec.status.value = { info: `已通过审核`, class: "border: solid 3px #0af" };
+        keywordExec.status.value = { info: `已${keywords.value.selectd.status == "checked" ? "启用" : "禁用"}`, class: "border: solid 3px #0af" };
+    },
+    "keyword.changeType": (_keyword) => {
+        keywords.value.all[_keyword.index] = _keyword;
+        keywords.value.selectd = _keyword;
+        keywordExec.status.value = { info: `已更改类型为: ${keywords.value.selectd.type == "accurate" ? "精确" : "模糊"}`, class: "border: solid 3px #0af" };
     },
     "keyword.saveContent": (_keyword) => {
         keywordExec.status.value = { info: `已保存${_keyword.type == "accurate" ? "精确" : "模糊"}关键词"${_keyword.keyword}"的内容`, class: "border: solid 3px #0af" };
@@ -257,14 +278,11 @@ function sendMsg() {
 
 init();
 function init() {
-    ws = new WebSocket(`${botServer.value.wsType}://${botServer.value.ip}:${botServer.value.port}`, botServer.value.token ? [botServer.value.token] : undefined);
+    ws = new WebSocket(`${botServer.value.wsType}://${botServer.value.ip}:${botServer.value.port}`, [`${webVersion}|${botServer.value.token}`]);
 
     ws.onopen = () => {
         console.log("连接开启，状态：", ws!.readyState);
-        botStatus.value.push({
-            msg: `连接开启`,
-            classType: "0af",
-        });
+        botStatus.value.push({ msg: `连接开启`, classType: "0af" });
     };
     ws.onmessage = (e) => {
         const data = JSON.parse(e.data);
@@ -280,6 +298,7 @@ function init() {
         //     clearInterval(intervalId);
         //     intervalId = null;
         // }
+        serverVersion.value = "未知";
         const closeInfo = `${e.reason ? e.reason : "未知原因"} | 连接被关闭, 正在重新连接`;
         console.log(closeInfo);
         botStatus.value.push({ msg: closeInfo, classType: "f00" });
