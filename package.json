@@ -1,6 +1,6 @@
 {
     "name": "bot-web",
-    "version": "2.2.0",
+    "version": "2.4.0",
     "scripts": {
         "dev": "vite --port 5500 --host 0.0.0.0",
         "preview": "vite preview --port 5500 --host 0.0.0.0",

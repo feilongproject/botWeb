@@ -70,12 +70,13 @@
                     </label>
                 </th>
                 <th>
-                    <button @click="keywordExec.changeStatus">点我{{ keywords.selectd.status == "checked" ? "禁用" : "启用" }}</button>
-                    <button @click="keywordExec.changeType">点我更改为{{ keywords.selectd.type == "accurate" ? "模糊" : "精确" }}类型</button>
-                    <button @click="keywordExec.saveContent">点我保存回复内容</button>
-                    <button @click="keywordExec.delete">点我删除</button>
+                    <button @click="keywordExec.changeStatus">{{ keywords.selectd.status == "checked" ? "禁用" : "启用" }}</button>
+                    <button @click="keywordExec.changeType">更改为{{ keywords.selectd.type == "accurate" ? "模糊" : "精确" }}类型</button>
+                    <button @click="keywordExec.saveImage">{{ keywords.selectd.imageName == "NONE" ? "添加" : "移除" }}当前图片</button>
+                    <button @click="keywordExec.saveContent">保存回复内容</button>
+                    <button @click="keywordExec.delete">删除</button>
                     <hr />
-                    <div>发送状态</div>
+                    <div>状态</div>
                     <div :style="keywordExec.status.value.class">{{ keywordExec.status.value.info }}</div>
                 </th>
             </tr>
@@ -150,8 +151,8 @@ const sended = ref({
 });
 const keywords = ref({
     readonly: true,
-    selectd: { index: 0, keyword: "NONE", content: "", ownerId: "", ownerName: "", refOwnerId: "", refOwnerName: "", status: "", type: "" },
-    all: [{ keyword: "未选择", content: "", ownerId: "", ownerName: "", refOwnerId: "", refOwnerName: "", status: "", type: "" }],
+    selectd: { index: 0, keyword: "NONE", content: "", ownerId: "", ownerName: "", refOwnerId: "", refOwnerName: "", status: "", type: "", imageName: "NONE" },
+    all: [{ keyword: "未选择", content: "", ownerId: "", ownerName: "", refOwnerId: "", refOwnerName: "", status: "", type: "", imageName: "" }],
 });
 keywords.value.all = [];
 const keywordExec = {
@@ -166,6 +167,11 @@ const keywordExec = {
     saveContent: () => {
         if (keywords.value.selectd.keyword == "NONE") return (keywordExec.status.value = { info: "未选择数据, 无法保存", class: "border: solid 3px #f00" });
         wsSend({ key: "keyword.saveContent", data: keywords.value.selectd }, "keyword.saveContent");
+    },
+    saveImage: () => {
+        if (keywords.value.selectd.keyword == "NONE") return (keywordExec.status.value = { info: "未选择数据, 无法操作", class: "border: solid 3px #f00" });
+        keywords.value.selectd.imageName = keywords.value.selectd.imageName == "NONE" ? imageInfo.value.selectd : "NONE";
+        wsSend({ key: "keyword.saveImage", data: keywords.value.selectd }, "keyword.saveImage");
     },
     delete: () => {
         if (keywords.value.selectd.keyword == "NONE") return (keywordExec.status.value = { info: "未选择数据, 无法删除", class: "border: solid 3px #f00" });
@@ -225,12 +231,19 @@ const wsIntentMessage: { [key: string]: (data?: any) => void } = {
     "keyword.saveContent": (_keyword) => {
         keywordExec.status.value = { info: `已保存${_keyword.type == "accurate" ? "精确" : "模糊"}关键词"${_keyword.keyword}"的内容`, class: "border: solid 3px #0af" };
     },
+    "keyword.saveImage": (data) => {
+        if (data.imageName == "NONE") {
+            imageInfo.value.selectd = "NONE";
+            imageInfo.value.src = "";
+        }
+        wsSend({ key: "keyword.get" }, "keyword.get");
+    },
     "keyword.delete": async (_keyword) => {
         if (!_keyword.isDel) return;
         keywords.value.readonly = true;
         keywordExec.status.value = { info: `已删除${_keyword.type == "accurate" ? "精确" : "模糊"}关键词"${_keyword.keyword}"`, class: "border: solid 3px #0af" };
         intervalHandler();
-        keywords.value.selectd = { index: 0, keyword: "NONE", content: "", ownerId: "", ownerName: "", refOwnerId: "", refOwnerName: "", status: "", type: "" };
+        keywords.value.selectd = { index: 0, keyword: "NONE", content: "", ownerId: "", ownerName: "", refOwnerId: "", refOwnerName: "", status: "", type: "", imageName: "NONE" };
     },
     "image.getList": async (data) => {
         imageInfo.value.all = [];
@@ -301,14 +314,20 @@ function selectChannel(e: Event) {
 }
 function selectKeyword(e: Event) {
     //console.log((e.target as any).options);
-    //console.log(keywords.value.selectd);
     keywords.value.readonly = false;
     const _index = (e.target as any).selectedIndex;
     const index = keywords.value.selectd.content == "" ? _index - 1 : _index;
     keywords.value.selectd = Object.assign({ index }, keywords.value.all[index]);
+    if (keywords.value.selectd.imageName == "NONE" || !keywords.value.selectd.imageName) {
+        imageInfo.value.selectd = "NONE";
+        imageInfo.value.image = null;
+        imageInfo.value.src = "";
+    } else {
+        imageInfo.value.selectd = keywords.value.selectd.imageName;
+        wsSend({ key: "image.get", data: keywords.value.selectd.imageName }, "image.get");
+    }
 }
 function selectImage(e: Event) {
-    console.log("selectImage");
     if (imageInfo.value.selectd == "NONE") {
         imageInfo.value.image = null;
         imageInfo.value.src = "";
