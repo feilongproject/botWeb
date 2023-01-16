@@ -5,7 +5,7 @@
     <ul class="board menu">
         <li class="menu-item">主页</li>
         <li class="menu-item">
-            <a class="menu-item" href="https://github.com/feilongproject/botWeb/" target="_blank">GitHub Link</a>
+            <a class="menu-item" href="https://github.com/feilongproject/botWeb/" target="_blank">开源地址</a>
         </li>
     </ul>
     <div class="board">

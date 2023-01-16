@@ -8,6 +8,27 @@
                 <th>开始操作</th>
             </tr>
             <tr>
+                <th>服务器图片管理</th>
+                <th>
+                    <label for="uploadInput">
+                        <input style="padding: 2.5px" id="uploadInput" @change="changeFile" type="file" />
+                    </label>
+                    <img :src="imageInfo.src" style="max-height: 400px; max-width: 400px" alt="未成功显示图片, 可能是: 未选择/未成功加载" />
+                </th>
+                <th>
+                    <label for="ImageSelect">
+                        <select id="imageSelect" style="width: 50%" v-model="imageInfo.selectd" @change="selectImage" required>
+                            <option key="NONE" value="NONE">未选择</option>
+                            <option v-for="(options, id) in imageInfo.all" :key="id" :value="options.id">{{ options.id }}</option>
+                        </select>
+                    </label>
+                </th>
+                <th>
+                    <button @click="uploadImage">上传图片</button>
+                    <button @click="deleteImage">删除图片</button>
+                </th>
+            </tr>
+            <tr>
                 <th><label for="sendMsgContent">向子频道发送消息</label></th>
                 <th>
                     <textarea id="sendMsgContent" name="sendMsgContent" class="sendMsgContent" v-model="sendMsgContent"></textarea>
@@ -21,7 +42,9 @@
                     </label>
                 </th>
                 <th>
-                    <button @click="sendMsg">点我发送</button>
+                    <button @click="sendMsg(true, false)">发送文字</button>
+                    <button @click="sendMsg(true, true)">发送图片&文字</button>
+                    <button @click="sendMsg(false, true)">发送图片</button>
                     <hr />
                     <div>发送状态</div>
                     <div :style="sended.class">{{ sended.info }}</div>
@@ -93,8 +116,9 @@
 </template>
 
 <script setup lang="ts">
+import path from "path-browserify";
 import { ref, watch } from "vue";
-import Notice from "./Notice.vue";
+//import Notice from "./Notice.vue";
 import { version as webVersion } from "../../package.json";
 
 const noticeShow = ref();
@@ -112,6 +136,13 @@ const channelInfo = ref({
     all: [{ id: "NONE", name: "未选择", selected: true, type: 0 }],
 });
 channelInfo.value.all = [];
+const imageInfo = ref({
+    src: "",
+    image: null as null | File,
+    selectd: "NONE",
+    all: [{ id: "NONE", selected: true }],
+});
+imageInfo.value.all = [];
 const sendMsgContent = ref("");
 const sended = ref({
     info: "未发送",
@@ -201,6 +232,28 @@ const wsIntentMessage: { [key: string]: (data?: any) => void } = {
         intervalHandler();
         keywords.value.selectd = { index: 0, keyword: "NONE", content: "", ownerId: "", ownerName: "", refOwnerId: "", refOwnerName: "", status: "", type: "" };
     },
+    "image.getList": async (data) => {
+        imageInfo.value.all = [];
+        imageInfo.value.selectd = "NONE";
+        for (const imageName of data) {
+            imageInfo.value.all.push({ id: imageName, selected: false });
+        }
+    },
+    "image.sendReady": async () => {
+        if (imageInfo.value.image) wsSend(await imageInfo.value.image.arrayBuffer(), "image.sendGone");
+    },
+    "image.sendGone": async (data) => {
+        botStatus.value.push({ msg: `于${new Date().toLocaleString()}成功上传图片`, classType: "0f0" });
+        imageInfo.value.selectd = data.name;
+        imageInfo.value.all.push({ id: data.name, selected: false });
+        //wsSend({ key: "image.getList" }, "image.getList");
+    },
+    "image.delete": async (data) => {
+        imageInfo.value.selectd = "NONE";
+        imageInfo.value.image = null;
+        imageInfo.value.src = "";
+        wsSend({ key: "image.getList" }, "image.getList");
+    },
 };
 watch(botStatus.value, () => {
     while (botStatus.value.length > 10) botStatus.value.shift();
@@ -208,15 +261,19 @@ watch(botStatus.value, () => {
 
 function intervalHandler() {
     //if (!botServer.value.autoFetch) return;
-    wsSend({ key: "channel.getList" }, "channel.getList");
     wsSend({ key: "keyword.get" }, "keyword.get");
+    wsSend({ key: "image.getList" }, "image.getList");
+    wsSend({ key: "channel.getList" }, "channel.getList");
 }
-function wsSend(content: { key: string; retKey?: string; data?: {} }, desc: string) {
-    botStatus.value.push({
-        msg: `于${new Date().toLocaleString()}发送数据: ${desc}`,
-        classType: "0af",
-    });
-    ws!.send(JSON.stringify(content));
+function wsSend(content: { key: string; retKey?: string; data?: {} } | ArrayBuffer, desc: string) {
+    const type = content.toString();
+    if (content instanceof ArrayBuffer) {
+        botStatus.value.push({ msg: `于${new Date().toLocaleString()}发送二进制图片: ${desc}`, classType: "0af" });
+        return ws!.send(content);
+    } else if (content instanceof Object) {
+        botStatus.value.push({ msg: `于${new Date().toLocaleString()}发送数据: ${desc}`, classType: "0af" });
+        ws!.send(JSON.stringify(content));
+    }
 }
 
 function saveServer(e: MouseEvent) {
@@ -250,14 +307,60 @@ function selectKeyword(e: Event) {
     const index = keywords.value.selectd.content == "" ? _index - 1 : _index;
     keywords.value.selectd = Object.assign({ index }, keywords.value.all[index]);
 }
+function selectImage(e: Event) {
+    console.log("selectImage");
+    if (imageInfo.value.selectd == "NONE") {
+        imageInfo.value.image = null;
+        imageInfo.value.src = "";
+    } else {
+        wsSend({ key: "image.get", data: imageInfo.value.selectd }, "image.get");
+    }
+}
+function changeFile(e: Event) {
+    const file = (e.target as any).files[0] as File;
+    if (file && file.size) {
+        imageInfo.value.image = file;
+        imageInfo.value.src = getObjectURL() || "";
+    } else imageInfo.value.image = null;
+}
+function uploadImage(e: Event) {
+    if (!imageInfo.value.image || !imageInfo.value.image.size || !imageInfo.value.image.name || !imageInfo.value.image.type) {
+        return botStatus.value.push({ msg: `于${new Date().toLocaleString()}发送图片失败, 请检查是否选中`, classType: "f00" });
+    }
+    const _pathname = path.parse(imageInfo.value.image.name);
+    const sendInfo = {
+        name: `${_pathname.name}-${new Date().getTime() + _pathname.ext}`,
+        size: imageInfo.value.image.size,
+        type: imageInfo.value.image.type,
+        lastModified: imageInfo.value.image.lastModified,
+    };
+    wsSend({ key: "image.sendReady", data: sendInfo }, "image.sendReady");
+}
+function deleteImage(e: Event) {
+    if (imageInfo.value.selectd == "NONE") {
+        return botStatus.value.push({ msg: `于${new Date().toLocaleString()}删除图片失败, 请检查是否选中`, classType: "f00" });
+    } else wsSend({ key: "image.delete", data: imageInfo.value.selectd }, "image.delete");
+}
+function getObjectURL(data?: Blob | null): string {
+    data = data || imageInfo.value.image;
+    if (!data) {
+        return "";
+    } else if (window.URL) {
+        return window.URL.createObjectURL(data);
+    } else if (window.webkitURL) {
+        return window.webkitURL.createObjectURL(data);
+    } else return "";
+}
 
-function sendMsg() {
+function sendMsg(withContent: boolean, withImage: boolean) {
     // console.log(noticeShow.value);
     console.log(`发送至: ${channelInfo.value.selectd}, 发送内容: ${sendMsgContent.value}`);
     if (channelInfo.value.selectd == "NONE") {
         sended.value = { info: "错误: 未指定发送频道", class: "border: solid 3px #f00" };
-    } else if (!sendMsgContent.value) {
+    } else if (withContent && !sendMsgContent.value) {
         sended.value = { info: "错误: 发送内容为空", class: "border: solid 3px #f00" };
+    } else if (withImage && !imageInfo.value.selectd) {
+        sended.value = { info: "错误: 发送图片为空", class: "border: solid 3px #f00" };
     } else {
         sended.value = { info: "发送中", class: "border: solid 3px #00f" };
         wsSend(
@@ -266,7 +369,8 @@ function sendMsg() {
                 retKey: "channel.recMsg",
                 data: {
                     channelId: channelInfo.value.selectd,
-                    content: sendMsgContent.value,
+                    content: withContent ? sendMsgContent.value : undefined,
+                    imageName: withImage ? imageInfo.value.selectd : undefined,
                 },
             },
             "channel.postMsg"
@@ -285,13 +389,21 @@ function init() {
         botStatus.value.push({ msg: `连接开启`, classType: "0af" });
     };
     ws.onmessage = (e) => {
-        const data = JSON.parse(e.data);
-        botStatus.value.push({
-            msg: `于${new Date().toLocaleString()}接收数据: ${data.key}`,
-            classType: "0f0",
-        });
-        console.log(`接收数据:`, data);
-        wsIntentMessage[data.key](data.data);
+        if (e.data instanceof Blob) {
+            botStatus.value.push({
+                msg: `于${new Date().toLocaleString()}接收二进制图片`,
+                classType: "0f0",
+            });
+            imageInfo.value.src = getObjectURL(e.data);
+        } else {
+            const data = JSON.parse(e.data);
+            botStatus.value.push({
+                msg: `于${new Date().toLocaleString()}接收数据: ${data.key}`,
+                classType: "0f0",
+            });
+            console.log(`接收数据:`, data);
+            wsIntentMessage[data.key](data.data);
+        }
     };
     ws.onclose = (e) => {
         // if (intervalId) {
@@ -357,7 +469,6 @@ interface SaveChannel {
         background-color: #000;
         background-repeat: no-repeat;
         background-position: center;
-        background-image: url("/noData.svg");
     }
 }
 
